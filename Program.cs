@@ -57,13 +57,15 @@ using (var scope = app.Services.CreateScope())
 var clientAppPath = Path.Combine(app.Environment.ContentRootPath, "ClientApp");
 if (Directory.Exists(clientAppPath))
 {
+    var clientFileProvider = new PhysicalFileProvider(clientAppPath);
     app.UseDefaultFiles(new DefaultFilesOptions
     {
+        FileProvider = clientFileProvider,
         DefaultFileNames = { "index.html" }
     });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(clientAppPath),
+        FileProvider = clientFileProvider,
         RequestPath = ""
     });
 }

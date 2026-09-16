@@ -8,17 +8,63 @@
   ];
   const statusColors = { Distributed: ["#d9f3e7", "#12734d"], Submitted: ["#fff0cc", "#9a6200"], Draft: ["#e8edf1", "#5c6873"] };
   const dspColors = { Live: ["#d9f3e7", "#12734d"], Processing: ["#fff0cc", "#9a6200"], Pending: ["#e8edf1", "#5c6873"], "Not submitted": ["#f0e3dc", "#9a4d2d"] };
+  const trackStatuses = ['Draft', 'Submitted', 'Distributed'];
+  const distributionStatuses = ['Pending', 'Live', 'Rejected'];
+
+  function normalizeTrack(track) {
+    const distributions = (track.distributions || track.dspDistributions || []).map(distribution => Object.assign({}, distribution, {
+      status: typeof distribution.status === 'number' ? distributionStatuses[distribution.status] : distribution.status,
+      submittedAt: distribution.submittedAt && !distribution.submittedAt.startsWith('0001-') ? distribution.submittedAt : null
+    }));
+    return Object.assign({}, track, {
+      status: typeof track.status === 'number' ? trackStatuses[track.status] : track.status,
+      artistName: track.artistName || (track.artist && (track.artist.name || track.artist.artistName)) || 'Unknown artist',
+      artwork: track.artwork || track.title.substring(0, 2).toUpperCase(),
+      distributions: distributions
+    });
+  }
+
+  function apiJson(path) {
+    return fetch(path).then(response => {
+      if (!response.ok) throw new Error('API request failed: ' + response.status);
+      return response.json();
+    });
+  }
 
   function Badge({ label, colors }) { return e('span', { className: 'badge', style: { background: colors[0], color: colors[1] } }, label); }
   function App() {
-    const [tracks, setTracks] = React.useState(demoTracks);
+    const [tracks, setTracks] = React.useState([]);
     const [filter, setFilter] = React.useState('All');
     const [selectedId, setSelectedId] = React.useState(null);
+    const [selectedTrack, setSelectedTrack] = React.useState(null);
     const [view, setView] = React.useState('list');
+    const [loading, setLoading] = React.useState(true);
+    const [apiFallback, setApiFallback] = React.useState(false);
     const visibleTracks = filter === 'All' ? tracks : tracks.filter(track => track.status === filter);
-    const selected = tracks.find(track => track.id === selectedId);
+    const selected = selectedTrack || tracks.find(track => track.id === selectedId);
 
-    function openTrack(track) { setSelectedId(track.id); setView('detail'); }
+    React.useEffect(() => {
+      apiJson('/api/tracks')
+        .then(data => {
+          const backendTracks = Array.isArray(data) ? data : (data.items || data.tracks || data.data || []);
+          setTracks(backendTracks.map(normalizeTrack));
+          setApiFallback(false);
+        })
+        .catch(() => {
+          setTracks(demoTracks);
+          setApiFallback(true);
+        })
+        .finally(() => setLoading(false));
+    }, []);
+
+    function openTrack(track) {
+      setSelectedId(track.id);
+      setSelectedTrack(track);
+      setView('detail');
+      apiJson('/api/tracks/' + encodeURIComponent(track.id))
+        .then(data => setSelectedTrack(normalizeTrack(data)))
+        .catch(() => {});
+    }
     function backToList() { setView('list'); }
 
     const listView = e('section', null,
@@ -40,7 +86,7 @@
     const detailView = e('section', { className: 'detail-view' }, e('button', { className: 'back-button', onClick: backToList }, '<- Back to tracks'), detailContent);
     return e('div', { className: 'app-shell' },
       e('header', { className: 'topbar' }, e('div', { className: 'brand' }, e('div', { className: 'brand-mark' }, 'T'), e('span', null, 'takwene')), e('div', { className: 'workspace-name' }, 'CATALOG / TRACKS')),
-      e('main', { className: 'main-content' }, e('div', { className: 'eyebrow' }, 'Music catalog'), view === 'list' ? listView : detailView)
+      e('main', { className: 'main-content' }, e('div', { className: 'eyebrow' }, 'Music catalog'), apiFallback && e('div', { className: 'api-notice' }, 'Backend unavailable. Showing demo data.'), loading ? e('div', { className: 'empty' }, 'Loading tracks...') : view === 'list' ? listView : detailView)
     );
   }
 
