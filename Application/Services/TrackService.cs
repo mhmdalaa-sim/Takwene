@@ -137,5 +137,51 @@ namespace Takwene.Application.Services
             track.Status = st;
             await _db.SaveChangesAsync();
         }
+
+        public async Task<TrackDto> UpdateAsync(Guid trackId, UpdateTrackDto dto)
+        {
+            var track = await _db.Tracks.FindAsync(trackId);
+            if (track == null) throw new ArgumentException("Track not found");
+
+            if (!string.Equals(track.Isrc, dto.Isrc, StringComparison.OrdinalIgnoreCase))
+            {
+                var exists = await _db.Tracks.AnyAsync(t => t.Isrc == dto.Isrc && t.Id != trackId);
+                if (exists) throw new ArgumentException("ISRC must be unique");
+            }
+
+            track.Title = dto.Title;
+            track.Isrc = dto.Isrc;
+            track.ReleaseDate = dto.ReleaseDate;
+            track.Genre = dto.Genre;
+            track.ArtistId = dto.ArtistId;
+
+            await _db.SaveChangesAsync();
+
+            var artist = await _db.Artists.FindAsync(track.ArtistId);
+
+            return new TrackDto
+            {
+                Id = track.Id,
+                Title = track.Title,
+                ArtistId = track.ArtistId,
+                ArtistName = artist?.Name ?? string.Empty,
+                Isrc = track.Isrc,
+                ReleaseDate = track.ReleaseDate,
+                Genre = track.Genre,
+                Status = track.Status
+            };
+        }
+
+        public async Task DeleteAsync(Guid trackId)
+        {
+            var track = await _db.Tracks.FindAsync(trackId);
+            if (track == null) throw new ArgumentException("Track not found");
+
+            // remove related distributions
+            var dists = _db.TrackDistributions.Where(td => td.TrackId == trackId);
+            _db.TrackDistributions.RemoveRange(dists);
+            _db.Tracks.Remove(track);
+            await _db.SaveChangesAsync();
+        }
     }
 }

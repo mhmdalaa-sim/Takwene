@@ -12,5 +12,7 @@ namespace Takwene.Application.Interfaces
         Task<TrackDto?> GetByIdAsync(Guid id);
         Task DistributeAsync(Guid trackId, Guid[] dspIds);
         Task UpdateStatusAsync(Guid trackId, string status);
+        Task<TrackDto> UpdateAsync(Guid trackId, UpdateTrackDto dto);
+        Task DeleteAsync(Guid trackId);
     }
 }

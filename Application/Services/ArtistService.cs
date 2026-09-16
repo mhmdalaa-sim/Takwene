@@ -30,5 +30,31 @@ namespace Takwene.Application.Services
                 .Select(a => new ArtistDto { Id = a.Id, Name = a.Name, Email = a.Email, Country = a.Country })
                 .ToListAsync();
         }
+
+        public async Task<ArtistDto?> GetByIdAsync(Guid id)
+        {
+            var a = await _db.Artists.FindAsync(id);
+            if (a == null) return null;
+            return new ArtistDto { Id = a.Id, Name = a.Name, Email = a.Email, Country = a.Country };
+        }
+
+        public async Task<ArtistDto> UpdateAsync(Guid id, CreateArtistDto dto)
+        {
+            var a = await _db.Artists.FindAsync(id);
+            if (a == null) throw new ArgumentException("Artist not found");
+            a.Name = dto.Name;
+            a.Email = dto.Email;
+            a.Country = dto.Country;
+            await _db.SaveChangesAsync();
+            return new ArtistDto { Id = a.Id, Name = a.Name, Email = a.Email, Country = a.Country };
+        }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var a = await _db.Artists.FindAsync(id);
+            if (a == null) throw new ArgumentException("Artist not found");
+            _db.Artists.Remove(a);
+            await _db.SaveChangesAsync();
+        }
     }
 }
