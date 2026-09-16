@@ -1,0 +1,6 @@
+@Takwene_HostAddress = http://localhost:5128
+
+GET {{Takwene_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
